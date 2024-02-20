@@ -63,10 +63,11 @@ Last row is for strings
 ## Ternary operator
 A "real" version doesnt exist yet, but you are allowed to do this, as logical operators don't only return booleans
 ```lua
-var x = 1 == 1 and "1 is equal to 1" or 1 > 2 and "1 is bigger than 2";
+var x = ((1 == 1) and "1 is equal to 1") or ((1 > 2) and "1 is bigger than 2");
 print(x)
 ```
 Would output "1 is equal to 1"
+The parantheses shouldn't be required but currently are due to a bug in the AST creator.
 ## Arrays/dictionaries
 Doesn't exist yet.
 ## Functions
