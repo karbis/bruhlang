@@ -1,0 +1,6 @@
+﻿var pau = function(a, b, c) {
+	return a+b;
+}
+
+var i = pau(nil or 5, 5);
+print(i);
