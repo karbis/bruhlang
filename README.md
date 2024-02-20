@@ -77,3 +77,7 @@ function foo(bar) {
 
 print(foo(1))
 ```
+## Standard library
+```lua
+print("hello", "world")
+```
