@@ -130,10 +130,10 @@ namespace bruhlang {
                         MoveNode(statementNode, functionCall);
                     }
                 } else if (token.Type == "ScopeStart") {
-                    while ((currentNode.Parent.Type == "Keyword" || currentNode.Type == "Negate") && (currentNode.Type != "Keyword" || currentNode.Value != "else")) {
+                    while ((currentNode.Parent.Type == "Keyword" || currentNode.Type == "Negate") && (currentNode.Type != "Keyword" || (currentNode.Value != "else" && currentNode.Value != "function"))) {
                         currentNode = currentNode.Parent;
                     }
-                    Node statementNode = new Node(currentNode, "Scope", (int.Parse(currentScope.Value)+1).ToString(), token);
+                    Node statementNode = new Node(currentNode, "Scope", null, token);
                     if (currentNode.Type == "Keyword" && currentNode.Value == "function") {
                         statementNode.Value = "Returnable";
                     }

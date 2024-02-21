@@ -10,14 +10,9 @@ namespace bruhlang {
     public class Scope {
         public Dictionary<string, dynamic?> Variables = new Dictionary<string, dynamic?>();
         public Scope? Parent;
-        public List<Scope> Scopes = new List<Scope>();
-        public bool Dead = false; // preparing for threads, might not even need it
 
         public Scope(Scope? parent = null) {
             Parent = parent;
-            if (parent != null) {
-                parent.Scopes.Add(this);
-            }
         }
     }
     internal class Parser {
@@ -64,31 +59,19 @@ namespace bruhlang {
             } else if (node.Type == "String") {
                 return node.Value;
             } else if (node.Type == "Scope") {
-                //if (node.Parent == null || node.Parent.Type != "Keyword" || node.Parent.Value != "for") {
-                    CurrentScope = new Scope(CurrentScope);
-                //}
-                Scope assignedScope = CurrentScope;
                 dynamic? returnVal = null;
                 foreach (Node node2 in node.Nodes) {
+                    CurrentScope = new Scope(CurrentScope);
+                    Scope assignedScope = CurrentScope;
                     dynamic? result = ParseNode(node2);
+
                     if (ErrorMsg != null) return null;
-                    CurrentScope = assignedScope;
+                    //CurrentScope = assignedScope;
 
                     if (node.Value == "Returnable" && node2 == node.Nodes[^1]) {
                         returnVal = result;
                     }
                 }
-
-                if (node.Parent == null) return returnVal;
-                //assignedScope.Parent.Scopes.Remove(assignedScope);
-
-                assignedScope.Dead = true;
-                if (CurrentScope.Scopes.Count == 0 || CurrentScope.Dead) {
-                    Scope oldScope = CurrentScope;
-                    CurrentScope = CurrentScope.Parent;
-                    CurrentScope.Scopes.Remove(oldScope);
-                }
-                //CurrentScope = CurrentScope.Parent;
                 return returnVal;
             } else if (node.Type == "Keyword" && node.Value == "if") {
                 dynamic? result = ParseNode(node.Nodes[0]);
@@ -107,6 +90,7 @@ namespace bruhlang {
 
                 dynamic? start = ParseNode(node.Nodes[1]);
                 CurrentScope = new Scope(CurrentScope);
+                Scope assignedScope = CurrentScope;
 
                 if (node.Nodes[4].Type != "TupleSeparator" && node.Nodes[4].Type != "Scope") {
                     Error("Invalid for loop structure, perhaps you're missing a comma?", node);
@@ -134,18 +118,17 @@ namespace bruhlang {
 
                 if (incrementAmount > 0) {
                     for (double i = start; i <= end; i += incrementAmount) {
-                        CurrentScope.Variables[node.Nodes[0].Value] = i;
+                        assignedScope.Variables[node.Nodes[0].Value] = i;
                         ParseNode(node.Nodes[scopeIndex]);
                         if (ErrorMsg != null) return null;
                     }
                 } else {
                     for (double i = start; i >= end; i += incrementAmount) {
-                        CurrentScope.Variables[node.Nodes[0].Value] = i;
+                        assignedScope.Variables[node.Nodes[0].Value] = i;
                         ParseNode(node.Nodes[scopeIndex]);
                         if (ErrorMsg != null) return null;
                     }
                 }
-                CurrentScope.Variables.Remove(node.Nodes[0].Value);
             } else if (node.Type == "Keyword" && node.Value == "while") {
                 while (true) {
                     dynamic? result = ParseNode(node.Nodes[0]);
@@ -188,7 +171,7 @@ namespace bruhlang {
                         i++;
                     }
                     dynamic? result = ParseNode(node.Nodes[1]);
-                    oldScope.Parent.Scopes.Remove(oldScope);
+                    //oldScope.Parent.Scopes.Remove(oldScope);
                     return result;
                 };
 

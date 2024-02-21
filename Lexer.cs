@@ -145,7 +145,7 @@ namespace bruhlang {
                 tokens[0] = new Token("UnaryMinus", "-");
                 return tokens;
             }
-            if (noSpacesStack == "{" || noSpacesStack == ")" || noSpacesStack == "}" || noSpacesStack == "=" || noSpacesStack == ".." || noSpacesStack == ";") {
+            if (noSpacesStack == "{" || noSpacesStack == ")" || noSpacesStack == "}" || noSpacesStack == "=" || noSpacesStack == ".." || noSpacesStack == ";" || noSpacesStack == ",") {
                 tokens[0] = CreateToken(noSpacesStack);
                 return tokens;
             }
@@ -163,7 +163,7 @@ namespace bruhlang {
                 }
             }
             foreach (string key in keywords) {
-                if ((noSpacesStack.EndsWith(key) && IsSeparator(stack[0])) || (noSpacesStack.StartsWith(key) && IsSeparator(stack[^1]))) {
+                if ((noSpacesStack.EndsWith(key) && IsSeparator(stack[0]) && string.IsNullOrWhiteSpace(noSpacesStack[0].ToString())) || (noSpacesStack.StartsWith(key) && IsSeparator(stack[^1]))) {
                     tokens[0] = CreateToken(noSpacesStack.Substring(0, key.Length));
                     break;
                 }

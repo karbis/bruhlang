@@ -26,9 +26,8 @@ namespace bruhlang {
             Parser result = new Parser(tree);
             watch.Stop();
             if (debugMode) {
-                Console.WriteLine("  --  Environment  --  ");
-                Console.WriteLine(ReadScopes(Parser.Env));
                 Console.WriteLine("");
+                Console.WriteLine("  --  Performance  --  ");
                 Console.WriteLine("Took " + watch.ElapsedMilliseconds + "ms to run");
             } 
         }
@@ -39,9 +38,9 @@ namespace bruhlang {
             foreach (KeyValuePair<string, dynamic?> variable in inputScope.Variables) {
                 str += indent + variable.Key + ": " + variable.Value + "\n";
             }
-            foreach (Scope newScope in inputScope.Scopes) {
-                str += ReadScopes(newScope, depth + 1);
-            }
+            //foreach (Scope newScope in inputScope.Scopes) {
+            //    str += ReadScopes(newScope, depth + 1);
+            //}
             return str;
         }
         public static string ReadAST(Node inputNode, Node? currentNode = null, int depth = 0) {
