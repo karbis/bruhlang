@@ -249,6 +249,7 @@ namespace bruhlang {
             return null;
         }
         void Error(string msg, Node node) {
+            if (ErrorMsg != null) return;
             Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine(msg);
             Console.ForegroundColor = ConsoleColor.Blue;
