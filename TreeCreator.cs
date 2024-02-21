@@ -11,11 +11,13 @@ namespace bruhlang {
         public List<Node> Nodes = new List<Node>();
         public string Type = "Unnamed";
         public Node Parent;
+        public Token? AttachedToken;
 
-        public Node(Node? parent = null, string? type = null, string? value = null) {
+        public Node(Node? parent = null, string? type = null, string? value = null, Token? token = null) {
             Parent = parent;
             Value = value;
             Type = type;
+            AttachedToken = token;
 
             if (parent != null) {
                 parent.Nodes.Add(this);
@@ -32,7 +34,7 @@ namespace bruhlang {
             {"=", 0},
         };
         public static Node Create(List<Token> tokens) {
-            Node root = new Node(null, "Scope", "1");
+            Node root = new Node(null, "Scope", "1", null);
             Node currentNode = root;
             Node currentScope = root;
             void AddOperator(Token token) {
@@ -41,25 +43,30 @@ namespace bruhlang {
                 int currentNodePriority = operatorPriority.ContainsKey(currentNode.Value ?? "") ? operatorPriority[currentNode.Value ?? ""] : 0;
                 int tokenPriority = operatorPriority.ContainsKey(token.Value) ? operatorPriority[token.Value] : 0;
                 if (currentNode.Type == "Operator" && currentNodePriority > tokenPriority) {
-                    Node operatorNode = new Node(currentNode.Parent, "Operator", token.Value);
+                    Node operatorNode = new Node(currentNode.Parent, "Operator", token.Value, token);
                     Node prevNode2 = currentNode.Parent.Nodes[^1];
                     currentNode = operatorNode;
                     MoveNode(prevNode2, currentNode);
                     return;
                 }
                 Node? prevNode = currentNode.Nodes.ElementAtOrDefault(currentNode.Nodes.Count - 1);
-                Node assignmentNode = new Node(currentNode, token.Type, token.Value);
+                Node assignmentNode = new Node(currentNode, token.Type, token.Value, token);
+                Console.WriteLine("Before");
+                Console.WriteLine(Program.ReadAST(root, currentNode));
                 currentNode = assignmentNode;
+
                 if (prevNode == null) { return; }
                 MoveNode(prevNode, currentNode);
+                Console.WriteLine("After");
+                Console.WriteLine(Program.ReadAST(root, currentNode));
             }
 
             int tokenI = -1;
             foreach (Token token in tokens) {
                 tokenI++;
-                //Console.WriteLine(ASTReader.ReadAST(root, currentNode));
-                //Console.WriteLine(token.Type);
-                if ((currentNode.Type == "Equality" || (currentNode.Type == "Keyword" && (currentNode.Value == "and" || currentNode.Value == "or"))) && currentNode.Nodes.Count > 1) {
+                Console.WriteLine(Program.ReadAST(root, currentNode));
+                Console.WriteLine(token.Type);
+                if ((currentNode.Type == "Equality" || (currentNode.Type == "Keyword" && (currentNode.Value == "and" || currentNode.Value == "or"))) && currentNode.Nodes.Count > 1 && token.Type != "Equality") {
                     currentNode = currentNode.Parent;
                 }
 
@@ -74,29 +81,34 @@ namespace bruhlang {
                             currentNode = currentNode.Parent;
                         }
                     }
-                    Node keyNode = new Node(currentNode, "Keyword", token.Value);
+                    Node keyNode = new Node(currentNode, "Keyword", token.Value, token);
                     currentNode = keyNode;
 
                     if (token.Value == "else") {
                         MoveNode(keyNode, currentNode.Parent.Nodes[^2]);
                     } else if (token.Value == "and" || token.Value == "or") {
                         MoveNode(keyNode.Parent.Nodes[^2], keyNode);
-                        if (currentNode.Parent.Type == "Keyword" && currentNode.Parent.Value == (token.Value == "or" ? "and" : "or")) {
+                        //Console.WriteLine(Program.ReadAST(root));
+                        /*if (currentNode.Parent.Type == "Keyword" && currentNode.Parent.Value == (token.Value == "or" ? "and" : "or")) {
                             MoveNode(currentNode, currentNode.Parent.Parent);
+                            //Console.WriteLine(Program.ReadAST(root));
                             MoveNode(currentNode.Parent.Nodes[^2], currentNode);
+                            //Console.WriteLine(Program.ReadAST(root));
                             MoveNode(currentNode.Nodes[0], currentNode.Nodes[1]);
-                        }
+                            //Console.WriteLine(Program.ReadAST(root));
+                        }*/
+                        //TODO fix
                     }
                 } else if (token.Type == "Identifier") {
-                    new Node(currentNode, "Identifier", token.Value);
+                    new Node(currentNode, "Identifier", token.Value, token);
                     if (currentNode.Type == "Keyword" && currentNode.Value == "var") {
-                        new Node(currentNode, "Identifier", token.Value);
+                        new Node(currentNode, "Identifier", token.Value, token);
                     }
                 } else if (token.Type == "Operator" || token.Type == "Assignment" || token.Type == "Equality" || token.Type == "ShortHand") {
                     // if it has a lower presedance than the operator above, then swap them around
                     AddOperator(token);
-                } else if (token.Type == "Number" || token.Type == "Bool" || token.Type == "String" || token.Type == "Null") {
-                    new Node(currentNode, token.Type, token.Value);
+                } else if (token.Type == "Number" || token.Type == "Bool" || token.Type == "String" || token.Type == "Null" || token.Type == "TupleSeparator") {
+                    new Node(currentNode, token.Type, token.Value, token);
                 } else if (token.Type == "EOL") {
                     // return back to the current scope
                     currentNode = currentScope;
@@ -110,11 +122,12 @@ namespace bruhlang {
                     }
                 } else if (token.Type == "StatementStart") {
                     // start new statement
-                    Node statementNode = new Node(currentNode, "Statement");
+                    Node statementNode = new Node(currentNode, "Statement", null, token);
                     currentNode = statementNode;
-                    if (tokenI != 0 && tokens[tokenI - 1].Type == "Identifier" && (tokenI < 1 || tokens[tokenI-2].Type != "Keyword" || tokens[tokenI-2].Value != "function")) {
+                    if (tokenI != 0 && tokens[tokenI - 1].Type == "Identifier" &&
+                        (tokenI <= 1 || (tokenI > 1 && (tokens[tokenI-2].Type != "Keyword" || tokens[tokenI-2].Value != "function")))) {
                         // function call
-                        Node functionCall = new Node(currentNode.Parent, "FunctionCall");
+                        Node functionCall = new Node(currentNode.Parent, "FunctionCall", null, token);
                         MoveNode(currentNode.Parent.Nodes[^3], functionCall);
                         MoveNode(statementNode, functionCall);
                     }
@@ -122,7 +135,7 @@ namespace bruhlang {
                     while (currentNode.Parent.Type == "Keyword" || currentNode.Type == "Negate") {
                         currentNode = currentNode.Parent;
                     }
-                    Node statementNode = new Node(currentNode, "Scope", (int.Parse(currentScope.Value)+1).ToString());
+                    Node statementNode = new Node(currentNode, "Scope", (int.Parse(currentScope.Value)+1).ToString(), token);
                     if (currentNode.Type == "Keyword" && currentNode.Value == "function") {
                         statementNode.Value = "Returnable";
                     }
@@ -138,10 +151,10 @@ namespace bruhlang {
                     if (currentNode.Type == "Operator" && currentNode.Nodes.Count > 1) {
                         AddOperator(new Token("Operator", "+")); // turn the operation to + (-x)
                     }
-                    Node minusOperator = new Node(currentNode, "UnaryMinus");
+                    Node minusOperator = new Node(currentNode, "UnaryMinus", null, token);
                     currentNode = minusOperator;
                 } else if (token.Type == "Negator") {
-                    Node negation = new Node(currentNode, "Negate");
+                    Node negation = new Node(currentNode, "Negate", null, token);
                     currentNode = negation;
                 }
 

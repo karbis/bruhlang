@@ -13,6 +13,8 @@ namespace bruhlang {
     public class Token {
         public string Type = "";
         public string Value;
+        public int? CharacterCount = -1;
+        public int? LineCount = -1;
 
         public Token(string type = "", string? value = null) {
             Type = type;
@@ -43,13 +45,26 @@ namespace bruhlang {
             List<Token> tokens = new List<Token>();
 
             string stack = "";
+            int charCount = 0;
+            int lineCount = 1;
             for (int i = 0; i < statement.Length; i++) {
                 string tok = statement[i].ToString();
                 stack += tok;
+                charCount++;
+                if (tok == "\n") {
+                    lineCount++;
+                    charCount = 0;
+                }
                 Token[]? result = ShouldCreateToken(stack);
                 if (result != null) {
-                    tokens.Add(result[0]);
+                    if (result[0] != null) {
+                        result[0].LineCount = lineCount;
+                        result[0].CharacterCount = charCount;
+                        tokens.Add(result[0]);
+                    }
                     if (result[1] != null) {
+                        result[1].LineCount = lineCount;
+                        result[1].CharacterCount = charCount;
                         tokens.Add(result[1]);
                     }
                     stack = "";
@@ -59,7 +74,7 @@ namespace bruhlang {
             if (!string.IsNullOrWhiteSpace(stack)) {
                 tokens.Add(CreateToken(RemoveSpaces(stack)));
             }
-            if (tokens[tokens.Count - 1].Type != "eos") {
+            if (tokens[tokens.Count - 1].Type != "EOS") {
                 tokens.Add(CreateToken(";"));
             }
 
@@ -69,6 +84,7 @@ namespace bruhlang {
         }
 
         static Token CreateToken(string stack) {
+            if (stack == "") return null;
             Token token = new Token();
             if (stack == ";") {
                 token.Type = "EOL"; // end of line
@@ -112,7 +128,7 @@ namespace bruhlang {
         static Token[]? ShouldCreateToken(string stack) {
             Token[] tokens = new Token[2];
             string noSpacesStack = RemoveSpaces(stack);
-            if ((noSpacesStack.StartsWith("\"") || noSpacesStack.StartsWith("'")) && noSpacesStack != "\"" && noSpacesStack != "'") {
+            if ((noSpacesStack.StartsWith("\"") || noSpacesStack.StartsWith("'"))) {
                 if (StringProperlyEnded(noSpacesStack)) {
                     string str = stack.TrimStart();
                     tokens[0] = new Token("String", EscapeString(str.Substring(1,str.Length-2)));
@@ -139,7 +155,7 @@ namespace bruhlang {
             }
 
             foreach (string op in operators) {
-                if ((noSpacesStack.EndsWith(op) || noSpacesStack.StartsWith(op)) && (noSpacesStack != op) && (op != "-" || !noSpacesStack.StartsWith(op))) {
+                if ((noSpacesStack.EndsWith(op) || noSpacesStack.StartsWith(op)) && (noSpacesStack != op || (IsSeparator(stack[0]) && IsSeparator(stack[^1]))) && (op != "-" || !noSpacesStack.StartsWith(op))) {
                     // ^ last statement is for negative numbers
                     tokens[0] = CreateToken(noSpacesStack.Substring(0, noSpacesStack.Length-op.Length));
                     tokens[1] = CreateToken(noSpacesStack.Substring(noSpacesStack.Length - op.Length, op.Length));
@@ -147,13 +163,17 @@ namespace bruhlang {
                 }
             }
             foreach (string key in keywords) {
-                if ((noSpacesStack.EndsWith(key) && IsSeparator(stack[0])) || (noSpacesStack.StartsWith(key) && IsSeparator(stack[stack.Length-1]))) {
+                if ((noSpacesStack.EndsWith(key) && IsSeparator(stack[0])) || (noSpacesStack.StartsWith(key) && IsSeparator(stack[^1]))) {
                     tokens[0] = CreateToken(noSpacesStack.Substring(0, key.Length));
                     break;
                 }
             }
 
-            if (tokens[0] == null) {
+            if (stack.EndsWith(" ") && tokens[0] == null) {
+                tokens[0] = CreateToken(noSpacesStack);
+            }
+
+            if (tokens[0] == null && tokens[1] == null) {
                 return null;
             }
             return tokens;
@@ -166,6 +186,7 @@ namespace bruhlang {
         static bool StringProperlyEnded(string str) {
             if ((str.StartsWith("\"") && str.EndsWith("\"")) ||
                (str.StartsWith("'") && str.EndsWith("'"))) {
+                if (str.Length == 1) return false;
                 int escapedCount = 0;
                 for (int i = str.Length - 1; i >= 0; i--) {
                     if (str.Substring(i, 1) == "\\") {

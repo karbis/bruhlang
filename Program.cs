@@ -9,25 +9,28 @@ namespace bruhlang {
                 Console.WriteLine("File doesn't exist!");
                 return;
             }
-            bool debugMode = (args.ElementAtOrDefault(1) ?? "") == "-d";
+            bool debugMode = (args.ElementAtOrDefault(1) ?? "") == "-d" || Debugger.IsAttached;
             List<Token> tokens = Lexer.Parse(File.ReadAllText(fileName));
+            if (debugMode) {
+                Console.WriteLine("  --  Tokens  --  ");
+                Console.WriteLine(ReadTokens(tokens));
+            }
             Node tree = TreeCreator.Create(tokens);
+            if (debugMode) {
+                Console.WriteLine("  --  AST  --  ");
+                Console.WriteLine(ReadAST(tree));
+                Console.WriteLine("  --  Runtime --  ");
+            }
             Stopwatch watch = new Stopwatch();
             watch.Start();
             Parser result = new Parser(tree);
             watch.Stop();
-            if (debugMode || Debugger.IsAttached) {
-                Console.WriteLine("  --  Tokens  --  ");
-                Console.WriteLine(ReadTokens(tokens));
-                Console.WriteLine("  --  AST  --  ");
-                Console.WriteLine(ReadAST(tree));
+            if (debugMode) {
                 Console.WriteLine("  --  Environment  --  ");
                 Console.WriteLine(ReadScopes(Parser.Env));
                 Console.WriteLine("");
                 Console.WriteLine("Took " + watch.ElapsedMilliseconds + "ms to run");
             } 
-
-            //a
         }
         public static string ReadScopes(Scope inputScope, int depth = 0) {
             string indent = new string(' ', depth * 4);
@@ -41,11 +44,11 @@ namespace bruhlang {
             }
             return str;
         }
-        public static string ReadAST(Node inputNode, int depth = 0) {
+        public static string ReadAST(Node inputNode, Node? currentNode = null, int depth = 0) {
             string indent = new string(' ', depth * 4);
-            string str = indent + inputNode.Type + ": " + inputNode.Value + "\n";
+            string str = indent + inputNode.Type + ": " + inputNode.Value + (currentNode == inputNode ? " !!!" : "") + "\n";
             foreach (Node node in inputNode.Nodes) {
-                str += ReadAST(node, depth+1);
+                str += ReadAST(node, currentNode, depth+1);
             }
             return str;
         }
