@@ -102,15 +102,48 @@ namespace bruhlang {
             } else if (node.Type == "Keyword" && node.Value == "for") {
                 // check for identifiedr WHATEVER
                 CheckValidNode(node.Nodes[0], node, "Can not start for loop because variable is invalid", "Identifier");
+                CheckValidNode(node.Nodes[2], node, "Can not start for loop because of a missing comma", "TupleSeparator");
+                if (ErrorMsg != null) return null;
+
                 dynamic? start = ParseNode(node.Nodes[1]);
                 CurrentScope = new Scope(CurrentScope);
-                CheckValidNode(node.Nodes[2], node, "Can not start for loop because missing comma", "TupleSeparator");
-                //CurrentScope.Variables[node.Nodes[0].Value] = start;
-                dynamic? end = ParseNode(node.Nodes[3]);
-                for (var i = start; i <= end; i++) {
-                    CurrentScope.Variables[node.Nodes[0].Value] = i;
-                    ParseNode(node.Nodes[4]);
+
+                if (node.Nodes[4].Type != "TupleSeparator" && node.Nodes[4].Type != "Scope") {
+                    Error("Invalid for loop structure, perhaps you're missing a comma?", node);
+                    return null;
+                }
+                int scopeIndex = 4;
+                dynamic? incrementAmount = 1;
+                if (node.Nodes[4].Type == "TupleSeparator") {
+                    scopeIndex = 6;
+                    incrementAmount = ParseNode(node.Nodes[5]);
                     if (ErrorMsg != null) return null;
+                }
+                //CurrentScope.Variables[node.Nodes[0].Value] = start;
+
+                dynamic? end = ParseNode(node.Nodes[3]);
+                if (!(start is double) || !(end is double) || !(incrementAmount is double)) {
+                    Error("For loop start/end/increment values weren't a number, types were:\nStart - " + start.GetType() + "\nEnd - " + end.GetType() + "\nIncrement - "
+                        + incrementAmount.GetType(), node);
+                    return null;
+                } else {
+                    start = (double)start;
+                    end = (double)end;
+                    incrementAmount = (double)incrementAmount;
+                }
+
+                if (incrementAmount > 0) {
+                    for (double i = start; i <= end; i += incrementAmount) {
+                        CurrentScope.Variables[node.Nodes[0].Value] = i;
+                        ParseNode(node.Nodes[scopeIndex]);
+                        if (ErrorMsg != null) return null;
+                    }
+                } else {
+                    for (double i = start; i >= end; i += incrementAmount) {
+                        CurrentScope.Variables[node.Nodes[0].Value] = i;
+                        ParseNode(node.Nodes[scopeIndex]);
+                        if (ErrorMsg != null) return null;
+                    }
                 }
                 CurrentScope.Variables.Remove(node.Nodes[0].Value);
             } else if (node.Type == "Keyword" && node.Value == "while") {
