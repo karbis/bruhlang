@@ -113,7 +113,7 @@ namespace bruhlang {
                     return null;
                 }
                 int scopeIndex = 4;
-                dynamic? incrementAmount = 1;
+                dynamic? incrementAmount = 1d;
                 if (node.Nodes[4].Type == "TupleSeparator") {
                     scopeIndex = 6;
                     incrementAmount = ParseNode(node.Nodes[5]);
