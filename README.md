@@ -36,7 +36,13 @@ for i = start, end {
 
 }
 ```
-Break and continue don't exist yet.
+You can also specify a increment amount
+```cs
+for i = start, end, increment {
+
+}
+```
+Break and continue don't exist yet
 ## While loops
 ```cs
 while statement {
