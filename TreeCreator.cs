@@ -32,6 +32,7 @@ namespace bruhlang {
             {"/", 2},
             {"^", 3},
             {"=", 0},
+            {"%",0}
         };
         public static Node Create(List<Token> tokens) {
             Node root = new Node(null, "Scope", "1", null);
@@ -51,22 +52,19 @@ namespace bruhlang {
                 }
                 Node? prevNode = currentNode.Nodes.ElementAtOrDefault(currentNode.Nodes.Count - 1);
                 Node assignmentNode = new Node(currentNode, token.Type, token.Value, token);
-                Console.WriteLine("Before");
-                Console.WriteLine(Program.ReadAST(root, currentNode));
                 currentNode = assignmentNode;
 
                 if (prevNode == null) { return; }
                 MoveNode(prevNode, currentNode);
-                Console.WriteLine("After");
-                Console.WriteLine(Program.ReadAST(root, currentNode));
             }
 
             int tokenI = -1;
             foreach (Token token in tokens) {
                 tokenI++;
-                Console.WriteLine(Program.ReadAST(root, currentNode));
-                Console.WriteLine(token.Type);
-                if ((currentNode.Type == "Equality" || (currentNode.Type == "Keyword" && (currentNode.Value == "and" || currentNode.Value == "or"))) && currentNode.Nodes.Count > 1 && token.Type != "Equality") {
+                //Console.WriteLine(Program.ReadAST(root, currentNode));
+                //Console.WriteLine(token.Type);
+                if ((currentNode.Type == "Equality" || currentNode.Type == "Operator" || (currentNode.Type == "Keyword" && (currentNode.Value == "and" || currentNode.Value == "or"))) && currentNode.Nodes.Count > 1 &&
+                    (token.Type != "Equality" || currentNode.Type != "Keyword")) {
                     currentNode = currentNode.Parent;
                 }
 
@@ -132,7 +130,7 @@ namespace bruhlang {
                         MoveNode(statementNode, functionCall);
                     }
                 } else if (token.Type == "ScopeStart") {
-                    while (currentNode.Parent.Type == "Keyword" || currentNode.Type == "Negate") {
+                    while ((currentNode.Parent.Type == "Keyword" || currentNode.Type == "Negate") && (currentNode.Type != "Keyword" || currentNode.Value != "else")) {
                         currentNode = currentNode.Parent;
                     }
                     Node statementNode = new Node(currentNode, "Scope", (int.Parse(currentScope.Value)+1).ToString(), token);

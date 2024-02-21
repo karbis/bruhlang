@@ -188,7 +188,7 @@ namespace bruhlang {
                (str.StartsWith("'") && str.EndsWith("'"))) {
                 if (str.Length == 1) return false;
                 int escapedCount = 0;
-                for (int i = str.Length - 1; i >= 0; i--) {
+                for (int i = str.Length - 2; i >= 0; i--) {
                     if (str.Substring(i, 1) == "\\") {
                         escapedCount += 1;
                         continue;

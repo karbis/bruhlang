@@ -104,11 +104,12 @@ namespace bruhlang {
                 CheckValidNode(node.Nodes[0], node, "Can not start for loop because variable is invalid", "Identifier");
                 dynamic? start = ParseNode(node.Nodes[1]);
                 CurrentScope = new Scope(CurrentScope);
+                CheckValidNode(node.Nodes[2], node, "Can not start for loop because missing comma", "TupleSeparator");
                 //CurrentScope.Variables[node.Nodes[0].Value] = start;
-                dynamic? end = ParseNode(node.Nodes[2]);
+                dynamic? end = ParseNode(node.Nodes[3]);
                 for (var i = start; i <= end; i++) {
                     CurrentScope.Variables[node.Nodes[0].Value] = i;
-                    ParseNode(node.Nodes[3]);
+                    ParseNode(node.Nodes[4]);
                     if (ErrorMsg != null) return null;
                 }
                 CurrentScope.Variables.Remove(node.Nodes[0].Value);
