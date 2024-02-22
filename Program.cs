@@ -29,6 +29,7 @@ namespace bruhlang {
                 Console.WriteLine("");
                 Console.WriteLine("  --  Performance  --  ");
                 Console.WriteLine("Took " + watch.ElapsedMilliseconds + "ms to run");
+                Tests.Test();
             } 
         }
         public static string ReadScopes(Scope inputScope, int depth = 0) {

@@ -36,28 +36,35 @@ namespace bruhlang {
             {"..",0}
         };
         public static Node Create(List<Token> tokens) {
-            Node root = new Node(null, "Scope", "1", null);
+            Node root = new Node(null, "Scope", null, null);
             Node currentNode = root;
             Node currentScope = root;
             Node currentStatement = root;
+            Node currentList = root;
             void AddOperator(Token token) {
-                if (token.Type == "Assignment" && currentNode.Type == "Keyword" && currentNode.Value == "for") return;
                 // if it has a lower presedance than the operator above, then swap them around
                 Node? prevNode = currentNode.Nodes.ElementAtOrDefault(currentNode.Nodes.Count - 1);
                 int currentNodePriority = operatorPriority.ContainsKey(prevNode.Value ?? "") ? operatorPriority[prevNode.Value ?? ""] : 0;
                 int tokenPriority = operatorPriority.ContainsKey(token.Value) ? operatorPriority[token.Value] : 0;
                 if (prevNode.Type == "Operator" && currentNodePriority < tokenPriority) {
-                    Console.WriteLine("Operator " + token.Value + " has more priority than " + prevNode.Value);
-                    Console.WriteLine(Program.ReadAST(root, currentNode));
                     Node operatorNode = new Node(prevNode, "Operator", token.Value, token);
-                    Console.WriteLine(Program.ReadAST(root, currentNode));
                     Node prevNode2 = prevNode.Nodes[^2];
                     currentNode = operatorNode;
                     MoveNode(prevNode2, currentNode);
-                    Console.WriteLine(Program.ReadAST(root, currentNode));
                     return;
                 }
+                if (token.Value == "..") {
+                    while (currentNode.Type == "Operator") {
+                        currentNode = currentNode.Parent;
+                    }
+                    Node statementNode = new Node(currentNode, "Statement", null, CloneToken(token, "Statement"));
+                    MoveNode(currentNode.Nodes[^2], statementNode);
+                    currentNode = statementNode;
+                    prevNode = statementNode.Nodes[^1];
+                }
                 Node assignmentNode = new Node(currentNode, token.Type, token.Value, token);
+
+                //if (token.Type == "Assignment" && currentNode.Type == "Keyword" && currentNode.Value == "for") return;
                 currentNode = assignmentNode;
 
                 if (prevNode == null) { return; }
@@ -92,16 +99,8 @@ namespace bruhlang {
                         MoveNode(keyNode, currentNode.Parent.Nodes[^2]);
                     } else if (token.Value == "and" || token.Value == "or") {
                         MoveNode(keyNode.Parent.Nodes[^2], keyNode);
-                        //Console.WriteLine(Program.ReadAST(root));
-                        /*if (currentNode.Parent.Type == "Keyword" && currentNode.Parent.Value == (token.Value == "or" ? "and" : "or")) {
-                            MoveNode(currentNode, currentNode.Parent.Parent);
-                            //Console.WriteLine(Program.ReadAST(root));
-                            MoveNode(currentNode.Parent.Nodes[^2], currentNode);
-                            //Console.WriteLine(Program.ReadAST(root));
-                            MoveNode(currentNode.Nodes[0], currentNode.Nodes[1]);
-                            //Console.WriteLine(Program.ReadAST(root));
-                        }*/
-                        //TODO fix
+                    } else if (token.Value == "in") {
+                        currentNode = keyNode.Parent;
                     }
                 } else if (token.Type == "Identifier") {
                     new Node(currentNode, "Identifier", token.Value, token);
@@ -111,7 +110,7 @@ namespace bruhlang {
                 } else if (token.Type == "Operator" || token.Type == "Assignment" || token.Type == "Equality" || token.Type == "ShortHand") {
                     // if it has a lower presedance than the operator above, then swap them around
                     AddOperator(token);
-                } else if (token.Type == "Number" || token.Type == "Bool" || token.Type == "String" || token.Type == "Null" || token.Type == "TupleSeparator") {
+                } else if (token.Type == "Number" || token.Type == "Bool" || token.Type == "String" || token.Type == "Null" || token.Type == "Separator") {
                     new Node(currentNode, token.Type, token.Value, token);
                 } else if (token.Type == "EOL") {
                     // return back to the current scope
@@ -156,16 +155,20 @@ namespace bruhlang {
                     currentNode = currentNode.Parent;
                     currentScope = currentNode;
                 } else if (token.Type == "UnaryMinus") {
-                    Console.WriteLine(Program.ReadAST(root, currentNode));
                     Node? inspectingNode = currentNode.Nodes.ElementAtOrDefault(currentNode.Nodes.Count-1);
                     if (inspectingNode != null && currentNode.Type != "Operator" && (inspectingNode.Type == "Operator" || inspectingNode.Type == "Statement") && (inspectingNode.Type == "Statement" || inspectingNode.Nodes.Count > 1)) {
-                        AddOperator(new Token("Operator", "+")); // turn the operation to + (-x)
+                        AddOperator(CloneToken(token, "Operator", "+")); // turn the operation to + (-x)
                     }
                     Node minusOperator = new Node(currentNode, "UnaryMinus", null, token);
                     currentNode = minusOperator;
                 } else if (token.Type == "Negator") {
                     Node negation = new Node(currentNode, "Negate", null, token);
                     currentNode = negation;
+                } else if (token.Type == "ListStart") {
+                    currentList = new Node(currentNode, "List", null, token);
+                    currentNode = currentList;
+                } else if (token.Type == "ListEnd") {
+                    currentNode = currentList.Parent;
                 }
 
                 if ((token.Type != "UnaryMinus" && currentNode.Type == "UnaryMinus") || (token.Type != "Negator" && currentNode.Type == "Negate")) {
@@ -180,6 +183,12 @@ namespace bruhlang {
             nodeToMove.Parent.Nodes.Remove(nodeToMove);
             newNodeLocation.Nodes.Add(nodeToMove);
             nodeToMove.Parent = newNodeLocation;
+        }
+        static Token CloneToken(Token token, string newType, string? newValue = null) {
+            Token newToken = new Token(newType, newValue);
+            newToken.CharacterCount = token.CharacterCount;
+            newToken.LineCount = token.LineCount;
+            return newToken;
         }
     }
 }

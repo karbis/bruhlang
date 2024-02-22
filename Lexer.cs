@@ -10,22 +10,11 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace bruhlang {
-    public class Token {
-        public string Type = "";
-        public string Value;
-        public int? CharacterCount = -1;
-        public int? LineCount = -1;
-
-        public Token(string type = "", string? value = null) {
-            Type = type;
-            Value = value;
-        }
-    }
     internal class Lexer {
-        static string[] operators = ["+=", "-=", "*=", "/=", "^=", "%=", "..=", "!=", ">=", "<=", "+", "-", "*", "/", "^", "=", ")", ";", "}", "<", ">", "{", ",", "%", "..", "!", "("];
+        static string[] operators = ["+=", "-=", "*=", "/=", "^=", "%=", "..=", "!=", ">=", "<=", "+", "-", "*", "/", "^", "=", ")", ";", "}", "<", ">", "{", ",", "%", "..", "!", "(","[","]"];
         static string[] doubleOperators = ["==", "!=", ">=", "<=", "+=", "-=", "*=", "/=", "^=", "%=", "++", "--", "..="];
         static string[] shortHandOperators = ["+=", "-=", "*=", "/=", "^=", "%=", "=", "..="];
-        static string[] keywords = ["var", "if", "else", "for", "while", "true", "false", "nil", "and", "or", "function", "return"];
+        static string[] keywords = ["var", "if", "else", "for", "while", "true", "false", "nil", "and", "or", "function", "return", "in"];
         static string[] shorterHandOperators = ["++", "--"];
 
         static Dictionary<string, string> escapedCharacters = new Dictionary<string, string> {
@@ -74,7 +63,7 @@ namespace bruhlang {
             if (!string.IsNullOrWhiteSpace(stack)) {
                 tokens.Add(CreateToken(RemoveSpaces(stack)));
             }
-            if (tokens[tokens.Count - 1].Type != "EOS") {
+            if (tokens[^1].Type != "EOL") {
                 tokens.Add(CreateToken(";"));
             }
 
@@ -107,7 +96,11 @@ namespace bruhlang {
             } else if (stack == "}") {
                 token.Type = "ScopeEnd";
             } else if (stack == ",") {
-                token.Type = "TupleSeparator";
+                token.Type = "Separator";
+            } else if (stack == "[") {
+                token.Type = "ListStart";
+            } else if (stack == "]") {
+                token.Type = "ListEnd";
             } else if (stack == "!") {
                 token.Type = "Negator";
             } else if (shorterHandOperators.Contains(stack)) {
@@ -141,14 +134,12 @@ namespace bruhlang {
                 return tokens;
             }
             string trimedStart = stack.TrimStart();
-            Console.WriteLine(trimedStart);
             if (trimedStart.StartsWith("-") && !trimedStart.StartsWith("- ") && trimedStart != "-") {
-                Console.WriteLine("Checkmark");
                 tokens[0] = new Token("UnaryMinus", "-");
                 tokens[1] = CreateToken(noSpacesStack.Substring(1, noSpacesStack.Length - 1));
                 return tokens;
             }
-            if (noSpacesStack == "{" || noSpacesStack == ")" || noSpacesStack == "}" || noSpacesStack == "=" || noSpacesStack == ".." || noSpacesStack == ";" || noSpacesStack == ",") {
+            if (noSpacesStack == "{" || noSpacesStack == ")" || noSpacesStack == "}" || noSpacesStack == "=" || noSpacesStack == ".." || noSpacesStack == ";" || noSpacesStack == "," || noSpacesStack == "]" || noSpacesStack == "[") {
                 tokens[0] = CreateToken(noSpacesStack);
                 return tokens;
             }
@@ -166,7 +157,8 @@ namespace bruhlang {
                 }
             }
             foreach (string key in keywords) {
-                if ((noSpacesStack.EndsWith(key) && IsSeparator(stack[0]) && string.IsNullOrWhiteSpace(noSpacesStack[0].ToString())) || (noSpacesStack.StartsWith(key) && IsSeparator(stack[^1]))) {
+                if ((noSpacesStack.EndsWith(key) && IsSeparator(stack[0]) && string.IsNullOrWhiteSpace(noSpacesStack[0].ToString()))
+                    || (noSpacesStack.StartsWith(key) && IsSeparator(stack[^1])) && string.IsNullOrWhiteSpace(noSpacesStack[^1].ToString())) {
                     tokens[0] = CreateToken(noSpacesStack.Substring(0, key.Length));
                     break;
                 }
