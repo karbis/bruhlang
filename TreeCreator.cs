@@ -32,25 +32,31 @@ namespace bruhlang {
             {"/", 2},
             {"^", 3},
             {"=", 0},
-            {"%",0}
+            {"%",0},
+            {"..",0}
         };
         public static Node Create(List<Token> tokens) {
             Node root = new Node(null, "Scope", "1", null);
             Node currentNode = root;
             Node currentScope = root;
+            Node currentStatement = root;
             void AddOperator(Token token) {
                 if (token.Type == "Assignment" && currentNode.Type == "Keyword" && currentNode.Value == "for") return;
                 // if it has a lower presedance than the operator above, then swap them around
-                int currentNodePriority = operatorPriority.ContainsKey(currentNode.Value ?? "") ? operatorPriority[currentNode.Value ?? ""] : 0;
+                Node? prevNode = currentNode.Nodes.ElementAtOrDefault(currentNode.Nodes.Count - 1);
+                int currentNodePriority = operatorPriority.ContainsKey(prevNode.Value ?? "") ? operatorPriority[prevNode.Value ?? ""] : 0;
                 int tokenPriority = operatorPriority.ContainsKey(token.Value) ? operatorPriority[token.Value] : 0;
-                if (currentNode.Type == "Operator" && currentNodePriority > tokenPriority) {
-                    Node operatorNode = new Node(currentNode.Parent, "Operator", token.Value, token);
-                    Node prevNode2 = currentNode.Parent.Nodes[^1];
+                if (prevNode.Type == "Operator" && currentNodePriority < tokenPriority) {
+                    Console.WriteLine("Operator " + token.Value + " has more priority than " + prevNode.Value);
+                    Console.WriteLine(Program.ReadAST(root, currentNode));
+                    Node operatorNode = new Node(prevNode, "Operator", token.Value, token);
+                    Console.WriteLine(Program.ReadAST(root, currentNode));
+                    Node prevNode2 = prevNode.Nodes[^2];
                     currentNode = operatorNode;
                     MoveNode(prevNode2, currentNode);
+                    Console.WriteLine(Program.ReadAST(root, currentNode));
                     return;
                 }
-                Node? prevNode = currentNode.Nodes.ElementAtOrDefault(currentNode.Nodes.Count - 1);
                 Node assignmentNode = new Node(currentNode, token.Type, token.Value, token);
                 currentNode = assignmentNode;
 
@@ -111,10 +117,13 @@ namespace bruhlang {
                     // return back to the current scope
                     currentNode = currentScope;
                 } else if (token.Type == "EOS") {
-                    while (currentNode.Parent.Type == "Statement") {
+                    /*while (true) {
+                        if (currentNode.Parent.Type == "Statement") {
+                            break;
+                        }
                         currentNode = currentNode.Parent;
-                    }
-                    currentNode = currentNode.Parent;
+                    }*/
+                    currentNode = currentStatement.Parent;
                     if (currentNode.Type == "FunctionCall") {
                         currentNode = currentNode.Parent;
                     }
@@ -122,6 +131,7 @@ namespace bruhlang {
                     // start new statement
                     Node statementNode = new Node(currentNode, "Statement", null, token);
                     currentNode = statementNode;
+                    currentStatement = currentNode;
                     if (tokenI != 0 && tokens[tokenI - 1].Type == "Identifier" &&
                         (tokenI <= 1 || (tokenI > 1 && (tokens[tokenI-2].Type != "Keyword" || tokens[tokenI-2].Value != "function")))) {
                         // function call
@@ -146,7 +156,9 @@ namespace bruhlang {
                     currentNode = currentNode.Parent;
                     currentScope = currentNode;
                 } else if (token.Type == "UnaryMinus") {
-                    if (currentNode.Type == "Operator" && currentNode.Nodes.Count > 1) {
+                    Console.WriteLine(Program.ReadAST(root, currentNode));
+                    Node? inspectingNode = currentNode.Nodes.ElementAtOrDefault(currentNode.Nodes.Count-1);
+                    if (inspectingNode != null && currentNode.Type != "Operator" && (inspectingNode.Type == "Operator" || inspectingNode.Type == "Statement") && (inspectingNode.Type == "Statement" || inspectingNode.Nodes.Count > 1)) {
                         AddOperator(new Token("Operator", "+")); // turn the operation to + (-x)
                     }
                     Node minusOperator = new Node(currentNode, "UnaryMinus", null, token);

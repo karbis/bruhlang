@@ -141,8 +141,11 @@ namespace bruhlang {
                 return tokens;
             }
             string trimedStart = stack.TrimStart();
-            if (trimedStart.StartsWith("-") && !trimedStart.StartsWith("- ")) {
+            Console.WriteLine(trimedStart);
+            if (trimedStart.StartsWith("-") && !trimedStart.StartsWith("- ") && trimedStart != "-") {
+                Console.WriteLine("Checkmark");
                 tokens[0] = new Token("UnaryMinus", "-");
+                tokens[1] = CreateToken(noSpacesStack.Substring(1, noSpacesStack.Length - 1));
                 return tokens;
             }
             if (noSpacesStack == "{" || noSpacesStack == ")" || noSpacesStack == "}" || noSpacesStack == "=" || noSpacesStack == ".." || noSpacesStack == ";" || noSpacesStack == ",") {
@@ -231,6 +234,10 @@ namespace bruhlang {
                     stack = "";
                     continue;
                 };
+                if (i > 1 && token.Type == "UnaryMinus" && tokens[i-2].Type != "Identifier") {
+                    stack = "";
+                    continue;
+                }
                 stack += token.Value;
                 foreach (string op in doubleOperators) {
                     if (!stack.EndsWith(op) || (stack == op && token.Value == op)) continue;
