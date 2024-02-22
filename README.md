@@ -32,13 +32,13 @@ if statement {
 ```
 ## For loops
 ```cs
-for i = start, end {
+for i in start, end {
 
 }
 ```
 You can also specify a increment amount
 ```cs
-for i = start, end, increment {
+for i in start, end, increment {
 
 }
 ```
