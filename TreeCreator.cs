@@ -6,24 +6,6 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace bruhlang {
-    public class Node {
-        public string Value = null;
-        public List<Node> Nodes = new List<Node>();
-        public string Type = "Unnamed";
-        public Node Parent;
-        public Token? AttachedToken;
-
-        public Node(Node? parent = null, string? type = null, string? value = null, Token? token = null) {
-            Parent = parent;
-            Value = value;
-            Type = type;
-            AttachedToken = token;
-
-            if (parent != null) {
-                parent.Nodes.Add(this);
-            }
-        }
-    }
     internal class TreeCreator {
         static Dictionary<string, int> operatorPriority = new Dictionary<string, int> {
             {"+", 1},
@@ -83,20 +65,19 @@ namespace bruhlang {
 
                 if (token.Type == "Keyword") {
                     if (token.Value == "else") {
-                        bool changed = false;
                         while (currentNode.Type != "Keyword" && currentNode.Value != "if" && currentNode.Type != "Scope") {
                             currentNode = currentNode.Parent;
-                            changed = true;
                         }
-                        if (changed) {
-                            currentNode = currentNode.Parent;
-                        }
+                        
                     }
                     Node keyNode = new Node(currentNode, "Keyword", token.Value, token);
                     currentNode = keyNode;
 
                     if (token.Value == "else") {
                         MoveNode(keyNode, currentNode.Parent.Nodes[^2]);
+                        while (currentNode.Parent.Nodes.Count > 3) {
+                            MoveNode(currentNode, currentNode.Parent.Nodes[^2].Nodes[0]);
+                        }
                     } else if (token.Value == "and" || token.Value == "or") {
                         MoveNode(keyNode.Parent.Nodes[^2], keyNode);
                     } else if (token.Value == "in") {
@@ -116,12 +97,6 @@ namespace bruhlang {
                     // return back to the current scope
                     currentNode = currentScope;
                 } else if (token.Type == "EOS") {
-                    /*while (true) {
-                        if (currentNode.Parent.Type == "Statement") {
-                            break;
-                        }
-                        currentNode = currentNode.Parent;
-                    }*/
                     currentNode = currentStatement.Parent;
                     if (currentNode.Type == "FunctionCall") {
                         currentNode = currentNode.Parent;
@@ -139,13 +114,10 @@ namespace bruhlang {
                         MoveNode(statementNode, functionCall);
                     }
                 } else if (token.Type == "ScopeStart") {
-                    while ((currentNode.Parent.Type == "Keyword" || currentNode.Type == "Negate") && (currentNode.Type != "Keyword" || (currentNode.Value != "else" && currentNode.Value != "function"))) {
+                    while ((currentNode.Parent.Type == "Keyword" || currentNode.Type == "Negate") && (currentNode.Type != "Keyword" || (currentNode.Value != "else" && currentNode.Value != "if" && currentNode.Value != "function"))) {
                         currentNode = currentNode.Parent;
                     }
                     Node statementNode = new Node(currentNode, "Scope", null, token);
-                    if (currentNode.Type == "Keyword" && currentNode.Value == "function") {
-                        statementNode.Value = "Returnable";
-                    }
                     currentNode = statementNode;
                     currentScope = currentNode;
                 } else if (token.Type == "ScopeEnd") {

@@ -9,16 +9,18 @@ namespace bruhlang {
     internal class Tests {
         public static void Test() {
             List<dynamic?> tests = new List<dynamic?> {
-                "return 1 != 1 and '1 is not 1' or 1 == 1 and '1 is 1' or 'none matching'",
+                "return 1 != 1 and '1 is not 1' or 1 == 1 and '1 is 1' or 'none matching'", // 1
                 "1 is 1",
-                "return 'hello' .. 10 - 1 ..'world'",
+                "return 'hello' .. 10 - 1 ..'world'", // 2
                 "hello9world",
-                "return 5^3*(2+1)",
+                "return 5^3*(2+1)", // 3
                 375,
-                "if false or true and !false { return true; }",
+                "if false or true and !false { return true; }", // 4
                 true,
-                "return 1- -1",
-                2
+                "return 1- -1", // 5
+                2,
+                "if false { return false; } else if false { return false; } else if true { return true; } else { return false; }", // 6
+                true
             };
 
 

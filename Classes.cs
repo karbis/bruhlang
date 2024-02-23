@@ -30,24 +30,28 @@ namespace bruhlang {
 
     public class LangList {
         Dictionary<dynamic, dynamic> Dict = new Dictionary<dynamic, dynamic>();
+        List<dynamic> List = new List<dynamic>();
 
         public List<KeyValuePair<dynamic, dynamic>> Get() {
-            List<KeyValuePair<dynamic, dynamic>> list = [.. Dict];
-            list.Sort((KeyValuePair<dynamic, dynamic> a, KeyValuePair<dynamic, dynamic> b) => {
-                if (a.Key is double && b.Key is double) {
-                    return ((double)a.Key).CompareTo((double)b.Key);
-                } else if (a.Key is double) {
-                    return -1;
-                } else if (b.Key is double) {
-                    return 1;
-                }
-                return 0;
-            });
+            List<KeyValuePair<dynamic, dynamic>> list = [];
+            int i = 1;
+            foreach (dynamic v in List) {
+                list.Add(new KeyValuePair<dynamic, dynamic>(i, v));
+            }
+            list = [.. list, .. Dict];
 
             return list;
         }
 
         public dynamic? Index(dynamic i) {
+            if (i is double && double.IsInteger(i)) {
+                try {
+                    return List[i];
+                }
+                catch {
+                    return null;
+                }
+            }
             try {
                 return Dict[i];
             }
@@ -58,18 +62,46 @@ namespace bruhlang {
 
         public void Set(dynamic i, dynamic v) {
             bool exists = !(Index(i) is null);
+            dynamic toUse = (i is double && double.IsInteger(i)) ? List : Dict;
             if (v is null && exists) {
-                Dict.Remove(i);
+                toUse.Remove(i);
                 return;
             }
             if (i is null) {
                 return;
             }
             if (!exists) {
-                Dict.Add(i, v);
+                toUse.Add(i, v);
                 return;
             }
-            Dict[i] = v;
+            toUse[i] = v;
+        }
+
+        public void Insert(dynamic v, int? i = null) {
+            if (i is null) {
+                List.Add(v);
+            } else {
+                List.Insert((int)i, v);
+
+            }
+        }
+    }
+    public class Node {
+        public string Value = null;
+        public List<Node> Nodes = new List<Node>();
+        public string Type = "Unnamed";
+        public Node Parent;
+        public Token? AttachedToken;
+
+        public Node(Node? parent = null, string? type = null, string? value = null, Token? token = null) {
+            Parent = parent;
+            Value = value;
+            Type = type;
+            AttachedToken = token;
+
+            if (parent != null) {
+                parent.Nodes.Add(this);
+            }
         }
     }
 }

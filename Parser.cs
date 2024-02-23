@@ -27,6 +27,7 @@ namespace bruhlang {
             if (StoppedExecution()) return null;
             if (node.Type == "Keyword" && node.Value == "var") {
                 CheckValidNode(node.Nodes[0], node, "Can not declare variable because variable name is invalid", "Identifier");
+                if (StoppedExecution()) return null;
                 CurrentScope.Variables.Add(node.Nodes[0].Value, null);
                 if (node.Nodes[1].Value != "Identifier") {
                     ParseNode(node.Nodes[1]);
@@ -67,7 +68,7 @@ namespace bruhlang {
                 dynamic? result = ParseNode(node.Nodes[0]);
                 if (ToBool(result)) {
                     ParseNode(node.Nodes[1]);
-                } else if (node.Nodes[^1].Type == "Keyword" && node.Nodes[^1].Value == "else") {
+                } else if (node.Nodes[^1].Type == "Keyword") {
                     ParseNode(node.Nodes[^1].Nodes[0]);
                 }
             } else if (node.Type == "Equality") {
@@ -226,7 +227,7 @@ namespace bruhlang {
                         Error("Missing comma in list", node);
                         return null;
                     }
-                    list.Set((i / 2) + 1, ParseNode(node2));
+                    list.Insert(ParseNode(node2));
                     if (StoppedExecution()) return null;
                 }
 
@@ -257,14 +258,15 @@ namespace bruhlang {
             if (ErrorMsg != null) return;
             Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine(msg);
-            Console.ForegroundColor = ConsoleColor.Blue;
-            Console.WriteLine("-- Info --");
+            Console.ForegroundColor = ConsoleColor.DarkCyan;
+            //Console.WriteLine("-- Info --");
+            string indent = "  ";
             if (node.AttachedToken != null) {
-                Console.WriteLine("Line " + node.AttachedToken.LineCount + ", Character " + node.AttachedToken.CharacterCount);
-                Console.WriteLine("Token " + node.AttachedToken.Value + ", Type " + node.AttachedToken.Type);
+                Console.WriteLine(indent+"Line " + node.AttachedToken.LineCount + ", Character " + node.AttachedToken.CharacterCount);
+                Console.WriteLine(indent+"Token " + node.AttachedToken.Value + ", Type " + node.AttachedToken.Type);
             }
-            Console.WriteLine("Node " + node.Value + ", Type " + node.Type);
-            Console.WriteLine("----------");
+            Console.WriteLine(indent+"Node " + node.Value + ", Type " + node.Type);
+            //Console.WriteLine("----------");
             Console.ResetColor();
             ErrorMsg = msg;
             //throw new Exception(msg);
