@@ -20,6 +20,14 @@ namespace bruhlang {
                 "return 1- -1", // 5
                 2,
                 "if false { return false; } else if false { return false; } else if true { return true; } else { return false; }", // 6
+                true,
+                "if 1 <= 1*2 { return true; } return false;", // 7
+                true,
+                "var list = [[1]]; return list[1][1];", // 8
+                1,
+                "var list = []; list.idk = 1; return list.idk;", // 9
+                1,
+                "var list = []; list.func = function() { return true; } return list.func()", // 10
                 true
             };
 

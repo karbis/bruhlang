@@ -1,7 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.Design;
 using System.Diagnostics;
 using System.Linq;
+using System.Reflection.Emit;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Linq;
@@ -12,12 +15,12 @@ namespace bruhlang {
         public string? ErrorMsg;
         Node Tree;
         Scope CurrentScope;
-        FunctionContext CurrentContext;
+        public FunctionContext CurrentContext;
         public dynamic? Result;
         public Parser(Node tree) {
             Tree = tree;
             CurrentScope = Env;
-            Env.Variables = new GlobalEnvironment().Env;
+            Env.Variables = new GlobalEnvironment(this).Env;
             CurrentContext = new FunctionContext();
 
             ParseNode(tree);
@@ -39,12 +42,14 @@ namespace bruhlang {
             } else if (node.Type == "Operator") {
                 return ParseOperator(node);
             } else if (node.Type == "Identifier") {
-                Scope scope = GetIdentifierScope(node.Value);
+                var tuple = GetIdentifierScope(node);
+                dynamic? scope = tuple.Value.scope;
+                dynamic nodeVal = tuple.Value.nodeVal;
                 if (scope == null) {
-                    Error("Variable '" + node.Value + "' doesn't exist", node);
+                    Error("Variable '" + nodeVal + "' doesn't exist", node);
                     return null;
                 }
-                return scope.Variables[node.Value];
+                return scope[nodeVal];
             } else if (node.Type == "Statement") {
                 return ParseNode(node.Nodes[0]);
             } else if (node.Type == "UnaryMinus") {
@@ -128,11 +133,13 @@ namespace bruhlang {
                     ParseNode(node.Nodes[1]);
                 }
             } else if (node.Type == "ShortHand") {
-                Dictionary<string, dynamic?> scope = GetIdentifierScope(node.Nodes[0].Value).Variables;
+                var tuple = GetIdentifierScope(node.Nodes[0]);
+                dynamic? scope = tuple.Value.scope;
+                dynamic nodeVal = tuple.Value.nodeVal;
                 if (node.Value == "++") {
-                    scope[node.Nodes[0].Value]++;
+                    scope[nodeVal]++;
                 } else if (node.Value == "--") {
-                    scope[node.Nodes[0].Value]--;
+                    scope[nodeVal]--;
                 }
             } else if (node.Type == "Negate") {
                 return !ToBool(ParseNode(node.Nodes[0]));
@@ -153,7 +160,7 @@ namespace bruhlang {
                         return null;
                     }
                 }
-                Func<dynamic?[],dynamic?> funcReference = (dynamic?[] args) => {
+                Func<dynamic?[], int> funcReference = (dynamic?[] args) => {
                     CurrentScope = new Scope(CurrentScope);
                     Scope oldScope = CurrentScope;
                     int i = 0;
@@ -161,9 +168,9 @@ namespace bruhlang {
                         CurrentScope.Variables.Add(node2.Value, args.ElementAtOrDefault(i));
                         i++;
                     }
-                    dynamic? result = ParseNode(node.Nodes[1]);
+                    ParseNode(node.Nodes[1]);
                     //oldScope.Parent.Scopes.Remove(oldScope);
-                    return result;
+                    return 0;
                 };
 
                 if (!anonymous) {
@@ -181,6 +188,7 @@ namespace bruhlang {
                         Error("Argument list did not have a comma", node);
                         return null;
                     }
+                    if (node2.Type == "Separator") continue;
                     args.Add(ParseNode(node2));
                     if (StoppedExecution()) return null;
                 }
@@ -188,7 +196,10 @@ namespace bruhlang {
                 CurrentContext = new FunctionContext();
                 FunctionContext newContext = CurrentContext;
 
-                GetIdentifierScope(node.Nodes[0].Value).Variables[node.Nodes[0].Value](args.ToArray());
+                var tuple = GetIdentifierScope(node.Nodes[0]);
+                dynamic? scope = tuple.Value.scope;
+                dynamic nodeVal = tuple.Value.nodeVal;
+                scope[nodeVal](args.ToArray());
                 CurrentContext = oldContext;
                 return newContext.Result;
             } else if (node.Type == "Keyword" && node.Value == "return") {
@@ -201,7 +212,7 @@ namespace bruhlang {
             } else if (node.Type == "Keyword" && node.Value == "and") {
                 dynamic? result1 = ParseNode(node.Nodes[0]);
                 dynamic? result2 = ParseNode(node.Nodes[1]);
-                if (ToBool(result1) && ToBool(result2)) {
+                if ((ToBool(result1) && ToBool(result2)) || ToBool(result1)) {
                     return result2;
                 } else {
                     return result1;
@@ -215,7 +226,7 @@ namespace bruhlang {
                     return result1;
                 }
             } else if (node.Type == "List") {
-                if (node.Nodes.Count % 2 == 0) {
+                if (node.Nodes.Count % 2 == 0 && node.Nodes.Count != 0) {
                     Error("Can not create list as there is a separator with no value following it in the list", node);
                     return null;
                 }
@@ -244,17 +255,46 @@ namespace bruhlang {
             return ErrorMsg != null || !(CurrentContext.Result is null);
         }
 
-        Scope? GetIdentifierScope(string name) {
+        (dynamic? scope, dynamic nodeVal)? GetIdentifierScope(Node identifier) { // returns the dictionary and the index name
             Scope scope = CurrentScope;
+            dynamic? dict = null;
+            dynamic index = "";
             while (scope!= null) {
-                if (scope.Variables.ContainsKey(name)) {
-                    return scope;
+                if (scope.Variables.ContainsKey(identifier.Value)) {
+                    dict = scope.Variables;
+                    index = identifier.Value;
+                    break;
                 }
                 scope = scope.Parent;
             }
-            return null;
+            if (dict is null) {
+                return null;
+            }
+
+            if (dict[index] is LangList) {
+                int i = -1;
+                foreach (Node node in identifier.Nodes) {
+                    i++;
+                    if (node.Type != "Dot" && i%2 == 0) {
+                        Error("Missing dot in list accessing", node);
+                        return null;
+                    }
+                    if (node.Type == "Dot") continue;
+                    if (dict is null || index is null) {
+                        Error("Attempt to index nil", node);
+                        return null;
+                    }
+                    dynamic val = ParseNode(node);
+                    if (StoppedExecution()) return null;
+                    dict = dict[index];
+                    index = val;
+                }
+            }
+            
+            return (dict, index);
         }
-        void Error(string msg, Node node) {
+
+        public void Error(string msg, Node node) {
             if (ErrorMsg != null) return;
             Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine(msg);
@@ -333,8 +373,9 @@ namespace bruhlang {
         }
         void ParseAssignment(Node node) {
             dynamic? rightSide = ParseNode(node.Nodes[1]);
-            string nodeVal = node.Nodes[0].Value;
-            Dictionary<string, dynamic?> scope = GetIdentifierScope(nodeVal).Variables;
+            var tuple = GetIdentifierScope(node.Nodes[0]); // tuples r stupid
+            dynamic? scope = tuple.Value.scope;
+            dynamic nodeVal = tuple.Value.nodeVal;
             switch (node.Value) {
                 case "=":
                     scope[nodeVal] = rightSide;

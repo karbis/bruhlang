@@ -35,7 +35,7 @@ namespace bruhlang {
                     MoveNode(prevNode2, currentNode);
                     return;
                 }
-                if (token.Value == "..") {
+                /*if (token.Value == "..") {
                     while (currentNode.Type == "Operator") {
                         currentNode = currentNode.Parent;
                     }
@@ -43,7 +43,7 @@ namespace bruhlang {
                     MoveNode(currentNode.Nodes[^2], statementNode);
                     currentNode = statementNode;
                     prevNode = statementNode.Nodes[^1];
-                }
+                }*/
                 Node assignmentNode = new Node(currentNode, token.Type, token.Value, token);
 
                 //if (token.Type == "Assignment" && currentNode.Type == "Keyword" && currentNode.Value == "for") return;
@@ -59,7 +59,10 @@ namespace bruhlang {
                 //Console.WriteLine(Program.ReadAST(root, currentNode));
                 //Console.WriteLine(token.Type);
                 if ((currentNode.Type == "Equality" || currentNode.Type == "Operator" || (currentNode.Type == "Keyword" && (currentNode.Value == "and" || currentNode.Value == "or"))) && currentNode.Nodes.Count > 1 &&
-                    (token.Type != "Equality" || currentNode.Type != "Keyword")) {
+                    (token.Type != "Equality" || currentNode.Type != "Keyword") && (currentNode.Type != "Equality" || token.Type != "Operator")) {
+                    currentNode = currentNode.Parent;
+                }
+                if (currentNode.Type == "Identifier" && token.Type != "Dot" && currentNode.Nodes.Count != 0 && currentNode.Nodes[^1].Type != "Dot") {
                     currentNode = currentNode.Parent;
                 }
 
@@ -106,7 +109,7 @@ namespace bruhlang {
                     Node statementNode = new Node(currentNode, "Statement", null, token);
                     currentNode = statementNode;
                     currentStatement = currentNode;
-                    if (tokenI != 0 && tokens[tokenI - 1].Type == "Identifier" &&
+                    if (currentNode.Parent.Nodes.Count > 1 && currentNode.Parent.Nodes[^2].Type == "Identifier" &&
                         (tokenI <= 1 || (tokenI > 1 && (tokens[tokenI-2].Type != "Keyword" || tokens[tokenI-2].Value != "function")))) {
                         // function call
                         Node functionCall = new Node(currentNode.Parent, "FunctionCall", null, token);
@@ -137,10 +140,25 @@ namespace bruhlang {
                     Node negation = new Node(currentNode, "Negate", null, token);
                     currentNode = negation;
                 } else if (token.Type == "ListStart") {
+                    if (currentNode.Nodes.Count != 0 && (currentNode.Nodes[^1].Type == "Identifier" || currentNode.Nodes[^1].Type == "Statement")&& currentNode.Type != "Assignment") {
+                        if (currentNode.Nodes[^1].Type == "Statement") {
+                            // todo: currently, you are only allowed to index identifiers
+                            // maybe make a temp identifier system? ALso idk about function calls. whatever.
+                        }
+                        currentList = currentNode.Nodes[^1];
+                        currentNode = currentList;
+                        new Node(currentNode, "Dot", null, token);
+                        continue;
+                    }
                     currentList = new Node(currentNode, "List", null, token);
                     currentNode = currentList;
                 } else if (token.Type == "ListEnd") {
                     currentNode = currentList.Parent;
+                } else if (token.Type == "Dot") {
+                    if (currentNode.Type != "Identifier") {
+                        currentNode = currentNode.Nodes[^1];
+                    }
+                    new Node(currentNode, "Dot", null, token);
                 }
 
                 if ((token.Type != "UnaryMinus" && currentNode.Type == "UnaryMinus") || (token.Type != "Negator" && currentNode.Type == "Negate")) {

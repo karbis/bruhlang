@@ -29,8 +29,8 @@ namespace bruhlang {
     }
 
     public class LangList {
-        Dictionary<dynamic, dynamic> Dict = new Dictionary<dynamic, dynamic>();
-        List<dynamic> List = new List<dynamic>();
+        public Dictionary<dynamic, dynamic> Dict = new Dictionary<dynamic, dynamic>();
+        public List<dynamic> List = new List<dynamic>();
 
         public List<KeyValuePair<dynamic, dynamic>> Get() {
             List<KeyValuePair<dynamic, dynamic>> list = [];
@@ -46,7 +46,7 @@ namespace bruhlang {
         public dynamic? Index(dynamic i) {
             if (i is double && double.IsInteger(i)) {
                 try {
-                    return List[i];
+                    return List[(int)(i-1)];
                 }
                 catch {
                     return null;
@@ -83,6 +83,15 @@ namespace bruhlang {
             } else {
                 List.Insert((int)i, v);
 
+            }
+        }
+
+        public dynamic? this[dynamic index] {
+            get {
+                return Index(index);
+            }
+            set {
+                Set(index, value);
             }
         }
     }

@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 
 namespace bruhlang {
     internal class Lexer {
-        static string[] operators = ["+=", "-=", "*=", "/=", "^=", "%=", "..=", "!=", ">=", "<=", "+", "-", "*", "/", "^", "=", ")", ";", "}", "<", ">", "{", ",", "%", "..", "!", "(","[","]"];
+        static string[] operators = ["+=", "-=", "*=", "/=", "^=", "%=", "..=", "!=", ">=", "<=", "+", "-", "*", "/", "^", "=", ")", ";", "}", "<", ">", "{", ",", "%", "..", "!", "(","[","]","."];
         static string[] doubleOperators = ["==", "!=", ">=", "<=", "+=", "-=", "*=", "/=", "^=", "%=", "++", "--", "..="];
         static string[] shortHandOperators = ["+=", "-=", "*=", "/=", "^=", "%=", "=", "..="];
         static string[] keywords = ["var", "if", "else", "for", "while", "true", "false", "nil", "and", "or", "function", "return", "in"];
@@ -63,7 +63,7 @@ namespace bruhlang {
             if (!string.IsNullOrWhiteSpace(stack)) {
                 tokens.Add(CreateToken(RemoveSpaces(stack)));
             }
-            if (tokens[^1].Type != "EOL") {
+            if (tokens.Count != 0 && tokens[^1].Type != "EOL") {
                 tokens.Add(CreateToken(";"));
             }
 
@@ -103,6 +103,8 @@ namespace bruhlang {
                 token.Type = "ListEnd";
             } else if (stack == "!") {
                 token.Type = "Negator";
+            } else if (stack == ".") {
+                token.Type = "Dot";
             } else if (shorterHandOperators.Contains(stack)) {
                 token.Type = "ShortHand";
             } else if (doubleOperators.Contains(stack) || stack == ">" || stack == "<") {
@@ -134,7 +136,7 @@ namespace bruhlang {
                 return tokens;
             }
             string trimedStart = stack.TrimStart();
-            if (trimedStart.StartsWith("-") && !trimedStart.StartsWith("- ") && trimedStart != "-") {
+            if (trimedStart.StartsWith("-") && !trimedStart.StartsWith("- ") && trimedStart != "-" && !double.TryParse(trimedStart.Substring(1,1), out _)) {
                 tokens[0] = new Token("UnaryMinus", "-");
                 tokens[1] = CreateToken(noSpacesStack.Substring(1, noSpacesStack.Length - 1));
                 return tokens;
@@ -222,11 +224,14 @@ namespace bruhlang {
             while (i < tokens.Count-1) {
                 i++;
                 Token token = tokens[i];
+                if (i != 0 && token.Type == "Identifier" && tokens[i-1].Type == "Dot") {
+                    token.Type = "String";
+                }
                 if (token.Type != "Operator" && token.Type != "Equality" && token.Type != "UnaryMinus" && token.Type != "Assignment" && token.Type != "Negator") {
                     stack = "";
                     continue;
                 };
-                if (i > 1 && token.Type == "UnaryMinus" && tokens[i-2].Type != "Identifier") {
+                if (i > 1 && token.Type == "UnaryMinus" && tokens[i-2].Type != "Identifier" && tokens[i-1].Type != "Identifier") {
                     stack = "";
                     continue;
                 }
