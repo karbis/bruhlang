@@ -72,7 +72,14 @@ print(x)
 ```
 Would output "1 is equal to 1"
 ## Arrays/dictionaries
-Doesn't exist yet.
+Similiar to lua tables, only 1 datatype
+```cs
+var list = [1,2,3];
+print(list[1]);
+list.foo = "bar";
+print(list.foo);
+```
+Indexing starts at 1, you currently can not loop through them.
 ## Functions
 ```lua
 function foo(bar) {
@@ -83,5 +90,6 @@ print(foo(1))
 ```
 ## Standard library
 ```lua
-print("hello", "world")
+print("hello", "world");
+print(math.random(1, 10))
 ```
