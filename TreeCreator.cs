@@ -142,8 +142,9 @@ namespace bruhlang {
                 } else if (token.Type == "ListStart") {
                     if (currentNode.Nodes.Count != 0 && (currentNode.Nodes[^1].Type == "Identifier" || currentNode.Nodes[^1].Type == "Statement")&& currentNode.Type != "Assignment") {
                         if (currentNode.Nodes[^1].Type == "Statement") {
-                            // todo: currently, you are only allowed to index identifiers
-                            // maybe make a temp identifier system? ALso idk about function calls. whatever.
+                            /*new Node(currentNode, "ListIndex", null, token);
+                            MoveNode(currentNode.Nodes[^2], currentNode.Nodes[^1]);*/
+                            //currentNode = currentNode.Nodes[^1];
                         }
                         currentList = currentNode.Nodes[^1];
                         currentNode = currentList;

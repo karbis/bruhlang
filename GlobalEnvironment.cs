@@ -12,7 +12,21 @@ namespace bruhlang {
 
         public GlobalEnvironment(Parser parser) {
             Env.Add("print", (Func<dynamic?[], int>)((dynamic?[] args) => {
-                Console.WriteLine(string.Join(" ", args));
+                string[] msg = new string[args.Length];
+                int i = -1;
+                foreach (dynamic? arg in args) {
+                    i++;
+                    if (arg is null) {
+                        msg[i] = "nil";
+                        continue;
+                    } else if (arg is LangList) {
+                        msg[i] = Program.ReadList(arg);
+                        continue;
+                    }
+                    msg[i] = Convert.ToString(arg);
+                }
+                Console.WriteLine(string.Join(" ", msg));
+
                 return 0;
             }));
 
@@ -25,9 +39,9 @@ namespace bruhlang {
                     if (args.Length == 0) {
                         parser.CurrentContext.Result = Random.Shared.NextDouble();
                     } else if (args.Length == 1) {
-                        parser.CurrentContext.Result = Random.Shared.Next(1, (int)args[0]);
+                        parser.CurrentContext.Result = Random.Shared.Next(1, ((int)args[0])+1);
                     } else {
-                        parser.CurrentContext.Result = Random.Shared.Next((int)args[0], (int)args[1]);
+                        parser.CurrentContext.Result = Random.Shared.Next((int)args[0], ((int)args[1])+1);
                     }
 
                     return 0;

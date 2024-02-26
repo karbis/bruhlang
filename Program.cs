@@ -32,13 +32,20 @@ namespace bruhlang {
                 Tests.Test();
             } 
         }
-        public static string ReadScopes(Scope inputScope, int depth = 0) {
+        public static string ReadList(LangList inputList, int depth = 0) {
             string indent = new string(' ', depth * 4);
-            string str = indent + "Scope: \n";
+            string oldIndent = indent;
+            string str = indent+"[\n";
             indent += "    ";
-            foreach (KeyValuePair<string, dynamic?> variable in inputScope.Variables) {
-                str += indent + variable.Key + ": " + variable.Value + "\n";
+            foreach (KeyValuePair<dynamic, dynamic> variable in inputList.Get()) {
+                if (variable.Key is null || variable.Value is null) continue;
+                if (variable.Value is LangList) {
+                    str += indent + variable.Key + ": " + ReadList(variable.Value, depth+1) + "\n";
+                } else {
+                    str += indent + variable.Key + ": " + variable.Value + "\n";
+                }
             }
+            str += oldIndent + "]";
             //foreach (Scope newScope in inputScope.Scopes) {
             //    str += ReadScopes(newScope, depth + 1);
             //}

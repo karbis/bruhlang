@@ -165,6 +165,7 @@ namespace bruhlang {
                     Scope oldScope = CurrentScope;
                     int i = 0;
                     foreach (Node node2 in node.Nodes[0].Nodes) {
+                        if (node2.Type == "Separator") continue;
                         CurrentScope.Variables.Add(node2.Value, args.ElementAtOrDefault(i));
                         i++;
                     }
@@ -238,6 +239,7 @@ namespace bruhlang {
                         Error("Missing comma in list", node);
                         return null;
                     }
+                    if (node2.Type == "Separator") continue;
                     list.Insert(ParseNode(node2));
                     if (StoppedExecution()) return null;
                 }

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -37,6 +38,7 @@ namespace bruhlang {
             int i = 1;
             foreach (dynamic v in List) {
                 list.Add(new KeyValuePair<dynamic, dynamic>(i, v));
+                i++;
             }
             list = [.. list, .. Dict];
 
@@ -44,7 +46,7 @@ namespace bruhlang {
         }
 
         public dynamic? Index(dynamic i) {
-            if (i is double && double.IsInteger(i)) {
+            if (i is double && double.IsInteger(i) && i > 0) {
                 try {
                     return List[(int)(i-1)];
                 }
@@ -62,7 +64,8 @@ namespace bruhlang {
 
         public void Set(dynamic i, dynamic v) {
             bool exists = !(Index(i) is null);
-            dynamic toUse = (i is double && double.IsInteger(i)) ? List : Dict;
+            dynamic toUse = (i is double && double.IsInteger(i) && i > 0) ? List : Dict;
+            bool isList = toUse is List<dynamic>; // can probably do some optimizations here
             if (v is null && exists) {
                 toUse.Remove(i);
                 return;
@@ -71,16 +74,31 @@ namespace bruhlang {
                 return;
             }
             if (!exists) {
-                toUse.Add(i, v);
+                if (isList) {
+                    Insert(v, (int)i);
+                } else {
+                    toUse.Add(i, v);
+                }
                 return;
             }
-            toUse[i] = v;
+            if (isList) {
+                toUse[(int)i] = v;
+            } else {
+                toUse[i] = v;
+            }
         }
 
         public void Insert(dynamic v, int? i = null) {
             if (i is null) {
                 List.Add(v);
             } else {
+                for (int j = List.Count+1; j < i; j++) {
+                    List.Add(null);
+                }
+                if (i == List.Count + 1) {
+                    List.Add(v);
+                    return;
+                }
                 List.Insert((int)i, v);
 
             }
