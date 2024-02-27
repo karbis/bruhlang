@@ -17,6 +17,8 @@ namespace bruhlang {
             {"%",0},
             {"..",0}
         };
+        public static string[] PossibleIdentifiers = ["Identifier", "Statement", "FunctionCall", "ListIndex"];
+        public static string[] Wrappers = ["Scope", "Statement"];
         public static Node Create(List<Token> tokens) {
             Node root = new Node(null, "Scope", null, null);
             Node currentNode = root;
@@ -58,13 +60,13 @@ namespace bruhlang {
                 tokenI++;
                 //Console.WriteLine(Program.ReadAST(root, currentNode));
                 //Console.WriteLine(token.Type);
-                if ((currentNode.Type == "Equality" || currentNode.Type == "Operator" || (currentNode.Type == "Keyword" && (currentNode.Value == "and" || currentNode.Value == "or"))) && currentNode.Nodes.Count > 1 &&
+                if ((currentNode.Type == "Equality" || currentNode.Type == "Operator" || currentNode.Type == "ListIndex" || (currentNode.Type == "Keyword" && (currentNode.Value == "and" || currentNode.Value == "or"))) && currentNode.Nodes.Count > 1 &&
                     (token.Type != "Equality" || currentNode.Type != "Keyword") && (currentNode.Type != "Equality" || token.Type != "Operator")) {
                     currentNode = currentNode.Parent;
                 }
-                if (currentNode.Type == "Identifier" && token.Type != "Dot" && currentNode.Nodes.Count != 0 && currentNode.Nodes[^1].Type != "Dot") {
+                /*if (currentNode.Type == "Identifier" && token.Type != "Dot" && currentNode.Nodes.Count != 0 && currentNode.Nodes[^1].Type != "Dot") {
                     currentNode = currentNode.Parent;
-                }
+                }*/
 
                 if (token.Type == "Keyword") {
                     if (token.Value == "else") {
@@ -102,19 +104,21 @@ namespace bruhlang {
                 } else if (token.Type == "EOS") {
                     currentNode = currentStatement.Parent;
                     if (currentNode.Type == "FunctionCall") {
-                        currentNode = currentNode.Parent;
+                        //currentNode = currentNode.Parent;
                     }
                 } else if (token.Type == "StatementStart") {
                     // start new statement
                     Node statementNode = new Node(currentNode, "Statement", null, token);
                     currentNode = statementNode;
                     currentStatement = currentNode;
-                    if (currentNode.Parent.Nodes.Count > 1 && currentNode.Parent.Nodes[^2].Type == "Identifier" &&
+                    if (currentNode.Parent.Nodes.Count > 1 && PossibleIdentifiers.Contains(currentNode.Parent.Nodes[^2].Type) &&
+                        (tokenI == 0 || (tokenI > 0 && (tokens[tokenI-1].Type == "EOS" || tokens[tokenI-1].Type == "Identifier" || tokens[tokenI-1].Type == "String")))&&
                         (tokenI <= 1 || (tokenI > 1 && (tokens[tokenI-2].Type != "Keyword" || tokens[tokenI-2].Value != "function")))) {
                         // function call
                         Node functionCall = new Node(currentNode.Parent, "FunctionCall", null, token);
                         MoveNode(currentNode.Parent.Nodes[^3], functionCall);
                         MoveNode(statementNode, functionCall);
+                        currentStatement = functionCall;
                     }
                 } else if (token.Type == "ScopeStart") {
                     while ((currentNode.Parent.Type == "Keyword" || currentNode.Type == "Negate") && (currentNode.Type != "Keyword" || (currentNode.Value != "else" && currentNode.Value != "if" && currentNode.Value != "function"))) {
@@ -140,15 +144,19 @@ namespace bruhlang {
                     Node negation = new Node(currentNode, "Negate", null, token);
                     currentNode = negation;
                 } else if (token.Type == "ListStart") {
-                    if (currentNode.Nodes.Count != 0 && (currentNode.Nodes[^1].Type == "Identifier" || currentNode.Nodes[^1].Type == "Statement")&& currentNode.Type != "Assignment") {
-                        if (currentNode.Nodes[^1].Type == "Statement") {
-                            /*new Node(currentNode, "ListIndex", null, token);
-                            MoveNode(currentNode.Nodes[^2], currentNode.Nodes[^1]);*/
+                    if (currentNode.Nodes.Count != 0 && (PossibleIdentifiers.Contains(currentNode.Nodes[^1].Type) || currentNode.Nodes[^1].Type == "ListIndex")&& currentNode.Type != "Assignment") {
+                        /*if (currentNode.Nodes[^1].Type == "Statement") {
+                            new Node(currentNode, "ListIndex", null, token);
+                            MoveNode(currentNode.Nodes[^2], currentNode.Nodes[^1]);
                             //currentNode = currentNode.Nodes[^1];
                         }
                         currentList = currentNode.Nodes[^1];
                         currentNode = currentList;
-                        new Node(currentNode, "Dot", null, token);
+                        new Node(currentNode, "Dot", null, token);*/
+                        new Node(currentNode, "ListIndex", null, token);
+                        MoveNode(currentNode.Nodes[^2], currentNode.Nodes[^1]);
+                        currentNode = currentNode.Nodes[^1];
+                        currentList = currentNode;
                         continue;
                     }
                     currentList = new Node(currentNode, "List", null, token);
@@ -156,10 +164,9 @@ namespace bruhlang {
                 } else if (token.Type == "ListEnd") {
                     currentNode = currentList.Parent;
                 } else if (token.Type == "Dot") {
-                    if (currentNode.Type != "Identifier") {
-                        currentNode = currentNode.Nodes[^1];
-                    }
-                    new Node(currentNode, "Dot", null, token);
+                    new Node(currentNode, "ListIndex", null, token);
+                    MoveNode(currentNode.Nodes[^2], currentNode.Nodes[^1]);
+                    currentNode = currentNode.Nodes[^1];
                 }
 
                 if ((token.Type != "UnaryMinus" && currentNode.Type == "UnaryMinus") || (token.Type != "Negator" && currentNode.Type == "Negate")) {

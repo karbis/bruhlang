@@ -131,4 +131,9 @@ namespace bruhlang {
             }
         }
     }
+
+    public class Identifier(dynamic parent, dynamic index) {
+        public dynamic Parent = parent;
+        public dynamic Index = index;
+    }
 }

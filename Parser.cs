@@ -1,13 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel.Design;
+using System.Data.Common;
 using System.Diagnostics;
 using System.Linq;
+using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Linq;
+using static System.Formats.Asn1.AsnWriter;
 
 namespace bruhlang {
     internal class Parser {
@@ -42,14 +45,12 @@ namespace bruhlang {
             } else if (node.Type == "Operator") {
                 return ParseOperator(node);
             } else if (node.Type == "Identifier") {
-                var tuple = GetIdentifierScope(node);
-                dynamic? scope = tuple.Value.scope;
-                dynamic nodeVal = tuple.Value.nodeVal;
-                if (scope == null) {
-                    Error("Variable '" + nodeVal + "' doesn't exist", node);
+                Identifier? iden = ParseIdentifier(node);
+                if (iden == null) {
+                    Error("Variable '" + node.Value + "' doesn't exist", node);
                     return null;
                 }
-                return scope[nodeVal];
+                return iden.Parent[iden.Index];
             } else if (node.Type == "Statement") {
                 return ParseNode(node.Nodes[0]);
             } else if (node.Type == "UnaryMinus") {
@@ -133,13 +134,11 @@ namespace bruhlang {
                     ParseNode(node.Nodes[1]);
                 }
             } else if (node.Type == "ShortHand") {
-                var tuple = GetIdentifierScope(node.Nodes[0]);
-                dynamic? scope = tuple.Value.scope;
-                dynamic nodeVal = tuple.Value.nodeVal;
+                Identifier iden = ParseIdentifier(node.Nodes[0]);
                 if (node.Value == "++") {
-                    scope[nodeVal]++;
+                    iden.Parent[iden.Index]++;
                 } else if (node.Value == "--") {
-                    scope[nodeVal]--;
+                    iden.Parent[iden.Index]--;
                 }
             } else if (node.Type == "Negate") {
                 return !ToBool(ParseNode(node.Nodes[0]));
@@ -180,7 +179,8 @@ namespace bruhlang {
                     return funcReference;
                 }
             } else if (node.Type == "FunctionCall") {
-                CheckValidNode(node.Nodes[0], node, "Can not call function because function is invalid", "Identifier");
+                CheckValidNode(node.Nodes[0], node, "Can not call function because function is invalid", "AnyIdentifier");
+                if (StoppedExecution()) return null;
                 List<dynamic?> args = new List<dynamic?>();
                 int i = -1;
                 foreach (Node node2 in node.Nodes[1].Nodes) {
@@ -197,10 +197,8 @@ namespace bruhlang {
                 CurrentContext = new FunctionContext();
                 FunctionContext newContext = CurrentContext;
 
-                var tuple = GetIdentifierScope(node.Nodes[0]);
-                dynamic? scope = tuple.Value.scope;
-                dynamic nodeVal = tuple.Value.nodeVal;
-                scope[nodeVal](args.ToArray());
+                Identifier iden = ParseIdentifier(node.Nodes[0]);
+                iden.Parent[iden.Index](args.ToArray());
                 CurrentContext = oldContext;
                 return newContext.Result;
             } else if (node.Type == "Keyword" && node.Value == "return") {
@@ -245,6 +243,9 @@ namespace bruhlang {
                 }
 
                 return list;
+            } else if (node.Type == "ListIndex") {
+                Identifier iden = ParseIdentifier(node);
+                return iden.Parent[iden.Index];
             }
             return null;
         }
@@ -257,43 +258,29 @@ namespace bruhlang {
             return ErrorMsg != null || !(CurrentContext.Result is null);
         }
 
-        (dynamic? scope, dynamic nodeVal)? GetIdentifierScope(Node identifier) { // returns the dictionary and the index name
+        Identifier? ParseIdentifier(Node node) {
+            if (node.Type == "ListIndex") {
+                Identifier iden = ParseIdentifier(node.Nodes[0]);
+                dynamic? newVal = ParseNode(node.Nodes[1]);
+                dynamic? val = iden.Parent[iden.Index];
+                if (val is null || newVal is null) {
+                    Error("Attempt to index nil", node);
+                    return null;
+                }
+                return new Identifier(iden.Parent[iden.Index], newVal);
+            }
+            if (node.Type != "Identifier") {
+                return new Identifier(new dynamic[1] { ParseNode(node) }, 0); // the solution of all time
+            }
             Scope scope = CurrentScope;
-            dynamic? dict = null;
-            dynamic index = "";
-            while (scope!= null) {
-                if (scope.Variables.ContainsKey(identifier.Value)) {
-                    dict = scope.Variables;
-                    index = identifier.Value;
-                    break;
+            while (scope != null) {
+                if (scope.Variables.ContainsKey(node.Value)) {
+                    return new Identifier(scope.Variables, node.Value);
                 }
                 scope = scope.Parent;
             }
-            if (dict is null) {
-                return null;
-            }
-
-            if (dict[index] is LangList) {
-                int i = -1;
-                foreach (Node node in identifier.Nodes) {
-                    i++;
-                    if (node.Type != "Dot" && i%2 == 0) {
-                        Error("Missing dot in list accessing", node);
-                        return null;
-                    }
-                    if (node.Type == "Dot") continue;
-                    if (dict is null || index is null) {
-                        Error("Attempt to index nil", node);
-                        return null;
-                    }
-                    dynamic val = ParseNode(node);
-                    if (StoppedExecution()) return null;
-                    dict = dict[index];
-                    index = val;
-                }
-            }
-            
-            return (dict, index);
+            Error("Identifier '" + node.Value + "' doesn't exist.", node);
+            return null;
         }
 
         public void Error(string msg, Node node) {
@@ -313,9 +300,11 @@ namespace bruhlang {
             ErrorMsg = msg;
             //throw new Exception(msg);
         }
+
         void CheckValidNode(Node node, Node currentNode, string task = "", string intendedType = "Identifier", string? intendedValue = null) {
             if (node.Type == intendedType) return;
             if (intendedValue != null && node.Value == intendedValue) return;
+            if (intendedType == "AnyIdentifier" && TreeCreator.PossibleIdentifiers.Contains(node.Type)) return;
             Error(task + ". Expected " + intendedType + ", got " + node.Type, currentNode);
         }
 
@@ -375,9 +364,9 @@ namespace bruhlang {
         }
         void ParseAssignment(Node node) {
             dynamic? rightSide = ParseNode(node.Nodes[1]);
-            var tuple = GetIdentifierScope(node.Nodes[0]); // tuples r stupid
-            dynamic? scope = tuple.Value.scope;
-            dynamic nodeVal = tuple.Value.nodeVal;
+            Identifier iden = ParseIdentifier(node.Nodes[0]);
+            dynamic nodeVal = iden.Index;
+            dynamic scope = iden.Parent;
             switch (node.Value) {
                 case "=":
                     scope[nodeVal] = rightSide;
